@@ -59,7 +59,7 @@ The coupled 3D oxygen field is not radially symmetric (vertical and horizontal s
 
 The model was built following an original sketch reported in:
 https://smallthingsconsidered.blog/schaechter/2016/11/hedgehogs-in-your-garden/
-(figure/Original.png)
+![alt text](figure/Original.png)
 
 
 ## The models
