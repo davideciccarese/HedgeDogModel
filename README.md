@@ -1,10 +1,11 @@
 # The hedgehog consortium
 
-A modelling repository that turns the classic two dimensional schematic of supragingival dental
-plaque into something you can run, watch, rotate and quantify. It reconstructs the radial nine taxon
-"hedgehog" structure described by Mark Welch and colleagues (PNAS 2016) and grounds the assembly in
-the coaggregation and cell to cell distance framework of Kolenbrander and colleagues (Nat Rev
-Microbiol 2010).
+A modelling repository that turns the classic two-dimensional schematic of supragingival 
+dental plaque into a computational reconstruction. It represents the radial, 
+nine-taxon “hedgehog” structure described by Mark Welch and colleagues (PNAS, 2016) 
+and grounds the assembly in the coaggregation and cell-to-cell distance framework 
+developed by Kolenbrander and colleagues (Nature Reviews Microbiology, 2010).
+
 
 The source schematic is a wedge cut through a radially symmetric object. This repository contains the
 mathematics that explains the zonation, agent based models that recover the structure from local
