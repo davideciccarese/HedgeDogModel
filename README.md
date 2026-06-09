@@ -57,6 +57,11 @@ The coupled 3D oxygen field is not radially symmetric (vertical and horizontal s
 
 ![oxygen slices](figures/E_slices.png)
 
+The model was built following an original sketch reported in:
+https://smallthingsconsidered.blog/schaechter/2016/11/hedgehogs-in-your-garden/
+(figure/Original.png)
+
+
 ## The models
 
 **Model A, reaction diffusion (`reaction_diffusion.py`).** The steady chemistry on a radial
