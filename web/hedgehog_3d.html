@@ -1,0 +1,458 @@
+<!--
+  3D Spatio-temporal model of oral bacterial colonization
+  A rotatable "hedgehog / corncob" consortium reconstructed from the 2D wedge figure
+  (after Mark Welch, Rossetti, Dewhirst & Borisy, PNAS 2016, "Biogeography of a
+   human oral microbiome at the micron scale").
+
+  The 2D fan in the source is a cross-section of a radially symmetric structure:
+  Corynebacterium filaments radiate from a base anchored to the tooth, and the other
+  taxa occupy spatial niches along an anoxic-core -> oxygenated-perimeter gradient.
+  Here that wedge is swept into a full hemispherical dome you can orbit, zoom and cut open.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Oral Biofilm — Hedgehog Consortium</title>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg0:#0a0e14; --bg1:#10151f;
+    --ink:#e7ecf3; --muted:#8b96a8; --line:rgba(255,255,255,.10);
+    --panel:rgba(15,20,30,.82);
+    --accent:#ff36c8;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg0);color:var(--ink);
+    font-family:'IBM Plex Mono',monospace;overflow:hidden}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+
+  /* ---- title ---- */
+  #title{position:absolute;top:18px;left:22px;max-width:46%;pointer-events:none;z-index:5}
+  #title h1{font-family:'Spectral',serif;font-weight:600;font-size:21px;line-height:1.15;
+    margin:0 0 4px;letter-spacing:.2px}
+  #title p{margin:0;font-size:11px;color:var(--muted);line-height:1.45;letter-spacing:.2px}
+  #title .src{font-style:italic;opacity:.7}
+
+  /* ---- control panel ---- */
+  .panel{position:absolute;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;backdrop-filter:blur(10px);z-index:6}
+  #legend{top:18px;right:18px;width:226px;padding:13px 14px}
+  #legend h2{font-family:'Spectral',serif;font-size:12.5px;font-weight:600;margin:0 0 9px;
+    letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+  .row{display:flex;align-items:center;gap:9px;padding:4px 5px;border-radius:7px;
+    cursor:pointer;user-select:none;transition:background .15s}
+  .row:hover{background:rgba(255,255,255,.05)}
+  .row.off{opacity:.34}
+  .sw{width:13px;height:13px;border-radius:3px;flex:0 0 auto;box-shadow:0 0 0 1px rgba(0,0,0,.4) inset}
+  .sw.ring{background:transparent;border:2px solid #d9d9d9}
+  .nm{font-size:11.5px;font-style:italic;font-family:'Spectral',serif;line-height:1.1}
+  .nm b{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+    color:var(--muted);display:block;font-weight:400;margin-top:1px}
+
+  #controls{bottom:18px;left:18px;padding:11px 13px;display:flex;flex-direction:column;gap:7px;
+    width:210px}
+  #controls .ctitle{font-size:9.5px;letter-spacing:1.2px;color:var(--muted);
+    text-transform:uppercase;margin-bottom:1px}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-size:11px;cursor:pointer;padding:3px 2px;user-select:none}
+  .pill{width:34px;height:18px;border-radius:10px;background:rgba(255,255,255,.13);
+    position:relative;transition:background .2s;flex:0 0 auto}
+  .pill::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;
+    border-radius:50%;background:#cfd6e2;transition:transform .2s}
+  .toggle.on .pill{background:var(--accent)}
+  .toggle.on .pill::after{transform:translateX(16px);background:#fff}
+
+  #hint{position:absolute;bottom:18px;right:18px;font-size:10px;color:var(--muted);
+    text-align:right;line-height:1.6;z-index:6;pointer-events:none;letter-spacing:.3px}
+  #hint b{color:var(--ink);font-weight:500}
+
+  @media (max-width:760px){
+    #title{max-width:64%}#title h1{font-size:16px}
+    #legend{width:160px;top:auto;bottom:12px;right:12px;padding:9px 10px}
+    .nm{font-size:10px}.nm b{display:none}
+    #controls{width:150px;left:12px;bottom:12px}
+    #hint{display:none}
+  }
+</style>
+
+<div id="app">
+  <div id="title">
+    <h1>The Hedgehog Consortium</h1>
+    <p>A 3D reconstruction of supragingival plaque architecture: <i>Corynebacterium</i>
+       filaments radiate from a tooth-anchored base, with taxa stratified along an
+       anoxic-core &rarr; oxygenated-perimeter gradient.<br>
+       <span class="src">After Mark Welch et&nbsp;al., PNAS 2016.</span></p>
+  </div>
+
+  <div id="legend" class="panel">
+    <h2>Taxa &middot; tap to toggle</h2>
+    <div id="legendRows"></div>
+  </div>
+
+  <div id="controls" class="panel">
+    <div class="ctitle">Scene</div>
+    <div class="toggle on" data-k="rotate"><span>Auto-rotate</span><span class="pill"></span></div>
+    <div class="toggle" data-k="cut"><span>Cutaway section</span><span class="pill"></span></div>
+    <div class="toggle on" data-k="grad"><span>O&#8322; gradient shells</span><span class="pill"></span></div>
+    <div class="toggle on" data-k="labels"><span>Environment labels</span><span class="pill"></span></div>
+  </div>
+
+  <div id="hint"><b>drag</b> orbit &nbsp;·&nbsp; <b>scroll</b> zoom &nbsp;·&nbsp; <b>right-drag</b> pan</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const TAXA = {
+  coryne:   {c:0xff36c8, label:'Corynebacterium', sub:'filament backbone'},
+  strep:    {c:0x35d24b, label:'Streptococcus',    sub:'corncob cocci'},
+  haem:     {c:0xff9a1f, label:'Haemophilus/Aggr.', sub:'perimeter'},
+  porph:    {c:0x2233e0, label:'Porphyromonas',    sub:'annulus'},
+  neiss:    {c:0x8a2bbf, label:'Neisseriaceae',     sub:'annulus'},
+  capno:    {c:0xe61f1f, label:'Capnocytophaga',   sub:'mid-zone rods'},
+  fuso:     {c:0xf4e016, label:'Fusobacterium',    sub:'bridging filament'},
+  lepto:    {c:0x2ad4e6, label:'Leptotrichia',     sub:'mid-zone filament'},
+  actino:   {c:0xeef0f3, label:'Actinomyces',      sub:'base', ring:true},
+  other:    {c:0x8a93a0, label:'other',            sub:'base cocci'},
+};
+
+const R = 5.2;                 // perimeter radius
+const COL = c => new THREE.Color(c);
+const rnd = (a,b)=>a+Math.random()*(b-a);
+
+// ---------- renderer / scene ----------
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.localClippingEnabled = true;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e14);
+scene.fog = new THREE.FogExp2(0x0a0e14, 0.045);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+
+// lights
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x0a0e14, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.05); key.position.set(6,9,7); scene.add(key);
+const rim = new THREE.DirectionalLight(0xff7adf, 0.5);  rim.position.set(-7,3,-5); scene.add(rim);
+const fill= new THREE.DirectionalLight(0x66e0ff, 0.35); fill.position.set(0,-4,6);  scene.add(fill);
+
+// clipping plane (cutaway)
+const clip = new THREE.Plane(new THREE.Vector3(0,0,-1), 0);
+const clipState = {on:false};
+const allMats = [];                       // every material that should respect clipping
+function track(m){ allMats.push(m); return m; }
+function mat(color,opts={}){
+  return track(new THREE.MeshStandardMaterial(Object.assign(
+    {color:COL(color), roughness:.55, metalness:.05}, opts)));
+}
+
+// group that holds everything (so we can spin it)
+const world = new THREE.Group(); scene.add(world);
+const groups = {};                        // per-taxon groups for toggling
+for(const k in TAXA){ groups[k]=new THREE.Group(); world.add(groups[k]); }
+
+// ---------- helpers ----------
+function dome(maxY=1){                     // random unit dir on upper hemisphere
+  const cz = Math.random()*maxY;           // y component (up)
+  const r  = Math.sqrt(1-cz*cz), t = Math.random()*Math.PI*2;
+  return new THREE.Vector3(Math.cos(t)*r, cz, Math.sin(t)*r);
+}
+function perp(v){                          // arbitrary perpendicular unit vector
+  const a = Math.abs(v.x)<.9 ? new THREE.Vector3(1,0,0):new THREE.Vector3(0,1,0);
+  return new THREE.Vector3().crossVectors(v,a).normalize();
+}
+
+// reusable instanced cells -------------------------------------------------
+function makeCells(key, positions, radius, {elong=1, mat:mt}={}){
+  if(!positions.length) return;
+  const geo = new THREE.SphereGeometry(radius, 10, 8);
+  const material = mt || mat(TAXA[key].c, {roughness:.4});
+  const mesh = new THREE.InstancedMesh(geo, material, positions.length);
+  const dummy = new THREE.Object3D();
+  positions.forEach((p,i)=>{
+    dummy.position.copy(p.pos);
+    if(p.dir){ // orient elongation along dir
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), p.dir);
+      dummy.quaternion.copy(q);
+      dummy.scale.set(1, elong, 1);
+    } else dummy.scale.set(1,1,1);
+    dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  groups[key].add(mesh);
+}
+
+// ====================================================================
+// 1) CORYNEBACTERIUM — the radial filament backbone (corncob cores)
+// ====================================================================
+const filaments = [];                       // store tip + axis for corncob building
+const N_FIL = 150;
+const coryneMat = mat(TAXA.coryne.c, {roughness:.45, emissive:COL(0x3a0030), emissiveIntensity:.25});
+for(let i=0;i<N_FIL;i++){
+  const dir = dome(0.98);
+  const r0  = rnd(0.18,0.45);
+  const len = rnd(R*0.82, R);
+  const start = dir.clone().multiplyScalar(r0);
+  const end   = dir.clone().multiplyScalar(len).add(perp(dir).multiplyScalar(rnd(-0.25,0.25)));
+  const bow   = perp(dir).multiplyScalar(rnd(-0.7,0.7));
+  const mid   = dir.clone().multiplyScalar(len*0.55).add(bow);
+  const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+  const tube  = new THREE.TubeGeometry(curve, 16, rnd(0.028,0.05), 5, false);
+  groups.coryne.add(new THREE.Mesh(tube, coryneMat));
+  const axis  = curve.getTangentAt(1).normalize();
+  filaments.push({end, axis, r:end.length()});
+}
+
+// ====================================================================
+// 2) CORNCOBS — Streptococcus cocci sheath on outer filament tips,
+//    capped by Haemophilus/Aggregatibacter at the very perimeter
+// ====================================================================
+const strepPos=[], haemPos=[];
+filaments.filter(f=>f.r>R*0.86).forEach(f=>{
+  if(Math.random()>0.72) return;            // ~70% of outer tips form corncobs
+  const u = perp(f.axis), v = new THREE.Vector3().crossVectors(f.axis,u);
+  const rings = 4+Math.floor(Math.random()*3);
+  for(let ri=0; ri<rings; ri++){
+    const along = f.end.clone().addScaledVector(f.axis, -ri*0.20 + 0.18);
+    const ringR = 0.135 + 0.012*ri;
+    const n = 6;
+    for(let a=0;a<n;a++){
+      const ang = (a/n)*Math.PI*2 + ri*0.4;
+      const p = along.clone()
+        .addScaledVector(u, Math.cos(ang)*ringR)
+        .addScaledVector(v, Math.sin(ang)*ringR);
+      strepPos.push({pos:p});
+    }
+  }
+  // a few Haemophilus beads crowning the very tip
+  for(let h=0; h<5; h++){
+    const ang=Math.random()*Math.PI*2, rr=rnd(0.08,0.2);
+    haemPos.push({pos:f.end.clone().addScaledVector(f.axis,rnd(0.12,0.3))
+      .addScaledVector(u,Math.cos(ang)*rr).addScaledVector(v,Math.sin(ang)*rr)});
+  }
+});
+makeCells('strep', strepPos, 0.075, {mat:mat(TAXA.strep.c,{roughness:.35,emissive:COL(0x0a3a12),emissiveIntensity:.2})});
+makeCells('haem',  haemPos,  0.085, {mat:mat(TAXA.haem.c, {roughness:.35})});
+
+// loose Streptococcus / Haemophilus drifting just outside the perimeter
+const driftS=[],driftH=[];
+for(let i=0;i<70;i++){ const d=dome(0.97).multiplyScalar(rnd(R*0.9,R*1.06)); driftS.push({pos:d}); }
+for(let i=0;i<45;i++){ const d=dome(0.95).multiplyScalar(rnd(R*0.95,R*1.1)); driftH.push({pos:d}); }
+makeCells('strep', driftS, 0.07, {mat:mat(TAXA.strep.c,{roughness:.35})});
+makeCells('haem',  driftH, 0.08, {mat:mat(TAXA.haem.c,{roughness:.35})});
+
+// ====================================================================
+// 3) ANNULUS clusters — Neisseriaceae & Porphyromonas
+// ====================================================================
+function cluster(key, count, rMin, rMax, cellR, n){
+  const pos=[];
+  for(let i=0;i<count;i++){
+    const c = dome(0.95).multiplyScalar(rnd(rMin,rMax));
+    for(let j=0;j<n;j++){
+      pos.push({pos:c.clone().add(new THREE.Vector3(rnd(-.15,.15),rnd(-.15,.15),rnd(-.15,.15)))});
+    }
+  }
+  makeCells(key,pos,cellR);
+}
+cluster('neiss', 16, R*0.62, R*0.82, 0.085, 6);
+cluster('porph', 18, R*0.66, R*0.86, 0.075, 5);
+
+// ====================================================================
+// 4) MID-ZONE filaments — Fusobacterium (yellow) & Leptotrichia (cyan)
+//    short, densely packed rods threading between the backbone
+// ====================================================================
+function shortFilaments(key, count, rMin, rMax, thick, lenR){
+  const m = mat(TAXA[key].c,{roughness:.5});
+  for(let i=0;i<count;i++){
+    const dir = dome(0.96);
+    const base= dir.clone().multiplyScalar(rnd(rMin,rMax));
+    const L   = rnd(lenR[0],lenR[1]);
+    const tilt= perp(dir).multiplyScalar(rnd(-0.4,0.4));
+    const end = base.clone().addScaledVector(dir,L).add(tilt);
+    const curve = new THREE.LineCurve3(base,end);
+    groups[key].add(new THREE.Mesh(new THREE.TubeGeometry(curve,1,thick,5,false), m));
+  }
+}
+shortFilaments('fuso', 80, R*0.28, R*0.72, 0.03, [0.7,1.4]);
+shortFilaments('lepto',110, R*0.32, R*0.80, 0.026,[0.6,1.3]);
+
+// Capnocytophaga — short red rods scattered mid-zone, varied orientation
+(function(){
+  const pos=[];
+  for(let i=0;i<150;i++){
+    pos.push({pos:dome(0.95).multiplyScalar(rnd(R*0.45,R*0.88)), dir:dome(1).normalize()});
+  }
+  makeCells('capno', pos, 0.05, {elong:3.0});
+})();
+
+// ====================================================================
+// 5) BASE / anoxic core — Actinomyces, "other", anchoring filaments
+// ====================================================================
+(function(){
+  // Actinomyces: pale rods packed at the base near the tooth
+  const aPos=[];
+  for(let i=0;i<90;i++){
+    const d=dome(0.7).multiplyScalar(rnd(0.15,1.4));
+    aPos.push({pos:d, dir:dome(1).normalize()});
+  }
+  makeCells('actino', aPos, 0.055, {elong:2.6,
+    mat:mat(TAXA.actino.c,{roughness:.7, emissive:COL(0x222831), emissiveIntensity:.15})});
+  // "other": grey coccus clumps low in the core
+  const oPos=[];
+  for(let i=0;i<14;i++){
+    const c=dome(0.6).multiplyScalar(rnd(0.6,2.6));
+    for(let j=0;j<5;j++) oPos.push({pos:c.clone().add(new THREE.Vector3(rnd(-.12,.12),rnd(-.12,.12),rnd(-.12,.12)))});
+  }
+  makeCells('other', oPos, 0.07);
+})();
+
+// ====================================================================
+// TOOTH surface + dense filament root mat at the base
+// ====================================================================
+(function(){
+  const toothMat = track(new THREE.MeshStandardMaterial(
+    {color:0x3f72b0, roughness:.4, metalness:.1, transparent:true, opacity:.92,
+     side:THREE.DoubleSide}));
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(R*1.25, 64), toothMat);
+  disc.rotation.x = -Math.PI/2; disc.position.y = -0.02; world.add(disc);
+  // raised attachment knoll
+  const knoll = new THREE.Mesh(new THREE.SphereGeometry(0.9,24,16,0,Math.PI*2,0,Math.PI/2),
+     track(new THREE.MeshStandardMaterial({color:0x2f5c97, roughness:.5})));
+  knoll.position.y=-0.02; world.add(knoll);
+})();
+
+// ====================================================================
+// O2 / anoxic gradient shells  (toggleable)
+// ====================================================================
+const shellGroup = new THREE.Group(); world.add(shellGroup);
+function shell(radius,color,op){
+  const g=new THREE.SphereGeometry(radius,40,24,0,Math.PI*2,0,Math.PI/2);
+  const m=track(new THREE.MeshBasicMaterial({color:COL(color),transparent:true,opacity:op,
+    side:THREE.BackSide, depthWrite:false}));
+  shellGroup.add(new THREE.Mesh(g,m));
+}
+shell(R*1.04, 0xffb24a, 0.05);   // oxic perimeter (warm)
+shell(R*0.66, 0x4aa0ff, 0.06);   // transition
+shell(R*0.34, 0x2b3bff, 0.09);   // anoxic core (deep blue)
+
+// ====================================================================
+// Environment labels as camera-facing sprites
+// ====================================================================
+const labelGroup = new THREE.Group(); world.add(labelGroup);
+function sprite(text, pos, color='#e7ecf3', size=0.95){
+  const pad=16, fs=44;
+  const cv=document.createElement('canvas'); const ctx=cv.getContext('2d');
+  ctx.font=`500 ${fs}px 'IBM Plex Mono', monospace`;
+  const w=ctx.measureText(text).width;
+  cv.width=w+pad*2; cv.height=fs+pad*2;
+  ctx.font=`500 ${fs}px 'IBM Plex Mono', monospace`;
+  ctx.fillStyle='rgba(10,14,20,.78)';
+  ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='rgba(255,255,255,.18)'; ctx.lineWidth=2; ctx.strokeRect(1,1,cv.width-2,cv.height-2);
+  ctx.fillStyle=color; ctx.textBaseline='middle';
+  ctx.fillText(text, pad, cv.height/2);
+  const tex=new THREE.CanvasTexture(cv); tex.anisotropy=4;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false}));
+  sp.scale.set(size*cv.width/cv.height, size, 1);
+  sp.position.copy(pos);
+  labelGroup.add(sp);
+}
+sprite('O\u2082 · saliva · sugars', new THREE.Vector3(0, R*0.92, R*0.55), '#ffd089', 1.05);
+sprite('CO\u2082 · lactate · acetate · H\u2082O\u2082', new THREE.Vector3(R*0.6,R*0.5,R*0.5), '#bfe0ff', .9);
+sprite('anoxic core', new THREE.Vector3(0, 1.5, 0), '#9fb6ff', .85);
+sprite('crevicular fluid \u2191', new THREE.Vector3(0, 0.5, -R*0.7), '#a8b6ff', .85);
+sprite('tooth', new THREE.Vector3(-R*0.95, 0.25, 0), '#cfe0ff', .9);
+
+// ====================================================================
+// apply clipping list now that all materials exist
+// ====================================================================
+function setClip(on){
+  clipState.on=on;
+  allMats.forEach(m=>{ m.clippingPlanes = on?[clip]:null; m.needsUpdate=true; });
+}
+
+// ====================================================================
+// minimal orbit controls (no external dependency)
+// ====================================================================
+const ctrl = {target:new THREE.Vector3(0,R*0.32,0), theta:0.7, phi:1.05, rad:13.5,
+              minRad:5, maxRad:30, autoRotate:true};
+function applyCam(){
+  const s=Math.sin(ctrl.phi);
+  camera.position.set(
+    ctrl.target.x + ctrl.rad*s*Math.sin(ctrl.theta),
+    ctrl.target.y + ctrl.rad*Math.cos(ctrl.phi),
+    ctrl.target.z + ctrl.rad*s*Math.cos(ctrl.theta));
+  camera.lookAt(ctrl.target);
+}
+applyCam();
+let drag=null;
+const cv=renderer.domElement;
+cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,b:e.button};cv.setPointerCapture(e.pointerId);ctrl.autoRotate=false;syncRotateToggle();});
+cv.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
+  if(drag.b===2){ // pan
+    const panX=-dx*0.01, panY=dy*0.01;
+    const right=new THREE.Vector3().setFromMatrixColumn(camera.matrix,0);
+    const up=new THREE.Vector3().setFromMatrixColumn(camera.matrix,1);
+    ctrl.target.addScaledVector(right,panX*ctrl.rad*0.1).addScaledVector(up,panY*ctrl.rad*0.1);
+  } else {
+    ctrl.theta -= dx*0.006;
+    ctrl.phi  = Math.max(0.12, Math.min(Math.PI/2+0.18, ctrl.phi - dy*0.006));
+  }
+  applyCam();
+});
+addEventListener('pointerup',()=>drag=null);
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('wheel',e=>{e.preventDefault();
+  ctrl.rad=Math.max(ctrl.minRad,Math.min(ctrl.maxRad,ctrl.rad*(1+Math.sign(e.deltaY)*0.08)));applyCam();
+},{passive:false});
+
+// ====================================================================
+// UI wiring
+// ====================================================================
+const legendRows=document.getElementById('legendRows');
+const state={}; for(const k in TAXA) state[k]=true;
+for(const k in TAXA){
+  const t=TAXA[k];
+  const row=document.createElement('div'); row.className='row'; row.dataset.k=k;
+  row.innerHTML=`<span class="sw ${t.ring?'ring':''}" style="background:${t.ring?'transparent':'#'+t.c.toString(16).padStart(6,'0')}"></span>
+    <span class="nm">${t.label}<b>${t.sub}</b></span>`;
+  row.onclick=()=>{ state[k]=!state[k]; groups[k].visible=state[k]; row.classList.toggle('off',!state[k]); };
+  legendRows.appendChild(row);
+}
+
+const flags={rotate:true,cut:false,grad:true,labels:true};
+function syncRotateToggle(){
+  document.querySelector('[data-k="rotate"]').classList.toggle('on',ctrl.autoRotate);
+  flags.rotate=ctrl.autoRotate;
+}
+document.querySelectorAll('.toggle').forEach(el=>{
+  el.onclick=()=>{
+    const k=el.dataset.k; flags[k]=!flags[k]; el.classList.toggle('on',flags[k]);
+    if(k==='rotate') ctrl.autoRotate=flags[k];
+    if(k==='cut')    setClip(flags[k]);
+    if(k==='grad')   shellGroup.visible=flags[k];
+    if(k==='labels') labelGroup.visible=flags[k];
+  };
+});
+
+// ====================================================================
+// render loop
+// ====================================================================
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+function loop(){
+  requestAnimationFrame(loop);
+  if(ctrl.autoRotate){ ctrl.theta+=0.0016; applyCam(); }
+  renderer.render(scene,camera);
+}
+loop();
+</script>
